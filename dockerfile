@@ -33,6 +33,9 @@ RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 ENV APP_ENV=prod
 ENV APP_SECRET=build_placeholder_secret
 
+# Création d'un fichier .env vide pour éviter l'erreur de Dotenv
+RUN touch .env
+
 # 7. AJOUT CRUCIAL : Installation des Assets (CSS/JS pour EasyAdmin/API Platform)
 # On le fait ici pour que les fichiers soient créés DANS l'image finale
 RUN php bin/console assets:install public --no-interaction
