@@ -1,10 +1,10 @@
 # On utilise l'image PHP officielle
 FROM php:8.2-apache
 
-# 1. Installation et Nettoyage
+# 1. Installation des dépendances système + Pilotes (MySQL & Postgres)
 RUN apt-get update \
     && apt-get install -y git acl openssl openssh-client wget zip vim libpng-dev zlib1g-dev libzip-dev libxml2-dev libicu-dev \
-    && docker-php-ext-install intl pdo pdo_mysql zip gd soap bcmath sockets \
+    && docker-php-ext-install intl pdo pdo_mysql pdo_pgsql zip gd soap bcmath sockets \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,9 +29,16 @@ COPY . .
 # 6. Finalisation Composer
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
-# 7. AJOUT CRUCIAL CORRIGÉ : Installation des Assets avec des fausses variables
-# On injecte des variables "bidon" juste pour que cette commande réussisse à passer
-RUN DATABASE_URL="mysql://build:build@build:3306/build" APP_SECRET="build" php bin/console assets:install public --no-interaction
+# ==========================================
+# LA CORRECTION EST ICI (Lignes 33-36)
+# ==========================================
+
+# 7. On crée un fichier .env vide pour tromper Symfony
+RUN touch .env
+
+# 8. On lance l'installation des assets en forçant l'environnement PROD
+# (Cela évite qu'il essaie de charger des trucs de debug)
+RUN APP_ENV=prod DATABASE_URL="mysql://build:build@build:3306/build" APP_SECRET="build" php bin/console assets:install public --no-interaction
 
 # Permissions et Port
 RUN chown -R www-data:www-data /var/www/html
