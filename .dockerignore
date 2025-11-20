@@ -1,0 +1,10 @@
+.git
+.env
+.env.local
+/vendor
+/var
+/node_modules
+/public/build
+docker-compose.yml
+README.md
+tests
