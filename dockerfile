@@ -1,7 +1,7 @@
 # On utilise l'image PHP officielle
 FROM php:8.2-apache
 
-# 1. Installation et Nettoyage (Optimisé pour la RAM)
+# 1. Installation et Nettoyage
 RUN apt-get update \
     && apt-get install -y git acl openssl openssh-client wget zip vim libpng-dev zlib1g-dev libzip-dev libxml2-dev libicu-dev \
     && docker-php-ext-install intl pdo pdo_mysql zip gd soap bcmath sockets \
@@ -17,34 +17,22 @@ RUN sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf &&
 
 WORKDIR /var/www/html
 
-# Permissions initiales pour que www-data puisse écrire
-RUN chown www-data:www-data /var/www/html
-
-# On passe en utilisateur non-root pour la suite (Sécurité + Performance build)
-USER www-data
-
-# 3. Copie intelligente (avec bon propriétaire)
-COPY --chown=www-data:www-data composer.json composer.lock ./
+# 3. Copie intelligente
+COPY composer.json composer.lock ./
 
 # 4. Installation des dépendances
 RUN composer install --no-scripts --no-autoloader --no-dev
 
-# 5. Copie du reste du code (avec bon propriétaire)
-COPY --chown=www-data:www-data . .
+# 5. Copie du reste du code
+COPY . .
 
 # 6. Finalisation Composer
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
-# Définition des variables d'environnement pour le build
-ENV APP_ENV=prod
-ENV APP_SECRET=build_placeholder_secret
+# 7. AJOUT CRUCIAL CORRIGÉ : Installation des Assets avec des fausses variables
+# On injecte des variables "bidon" juste pour que cette commande réussisse à passer
+RUN DATABASE_URL="mysql://build:build@build:3306/build" APP_SECRET="build" php bin/console assets:install public --no-interaction
 
-# Création d'un fichier .env vide
-RUN touch .env
-
-# 7. Installation des Assets
-RUN php bin/console assets:install public --no-interaction
-
-# On repasse en root pour qu'Apache puisse binder le port 80
-USER root
+# Permissions et Port
+RUN chown -R www-data:www-data /var/www/html
 EXPOSE 80
