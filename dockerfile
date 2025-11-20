@@ -17,29 +17,34 @@ RUN sed -ri -e 's!/var/www/!/var/www/html/public!g' /etc/apache2/apache2.conf &&
 
 WORKDIR /var/www/html
 
-# 3. Copie intelligente (On copie d'abord juste les fichiers composer pour le cache)
-COPY composer.json composer.lock ./
+# Permissions initiales pour que www-data puisse écrire
+RUN chown www-data:www-data /var/www/html
 
-# 4. Installation des dépendances (Sans scripts pour éviter les erreurs, sans dev pour le poids)
+# On passe en utilisateur non-root pour la suite (Sécurité + Performance build)
+USER www-data
+
+# 3. Copie intelligente (avec bon propriétaire)
+COPY --chown=www-data:www-data composer.json composer.lock ./
+
+# 4. Installation des dépendances
 RUN composer install --no-scripts --no-autoloader --no-dev
 
-# 5. Copie du reste du code
-COPY . .
+# 5. Copie du reste du code (avec bon propriétaire)
+COPY --chown=www-data:www-data . .
 
 # 6. Finalisation Composer
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
-# Définition des variables d'environnement pour le build (Sécurité)
+# Définition des variables d'environnement pour le build
 ENV APP_ENV=prod
 ENV APP_SECRET=build_placeholder_secret
 
-# Création d'un fichier .env vide pour éviter l'erreur de Dotenv
+# Création d'un fichier .env vide
 RUN touch .env
 
-# 7. AJOUT CRUCIAL : Installation des Assets (CSS/JS pour EasyAdmin/API Platform)
-# On le fait ici pour que les fichiers soient créés DANS l'image finale
+# 7. Installation des Assets
 RUN php bin/console assets:install public --no-interaction
 
-# Permissions et Port
-RUN chown -R www-data:www-data /var/www/html
+# On repasse en root pour qu'Apache puisse binder le port 80
+USER root
 EXPOSE 80
