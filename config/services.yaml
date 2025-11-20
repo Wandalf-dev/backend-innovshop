@@ -1,0 +1,55 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    uploads_directory: '%kernel.project_dir%/public/uploads/products'
+    uploads_sellers_directory: '%kernel.project_dir%/public/uploads/sellers'
+
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
+
+    # State Processor pour hasher les mots de passe
+    App\State\UserPasswordHasher:
+        bind:
+            $processor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    # State Processor pour assigner le vendeur aux produits
+    App\State\ProductProcessor:
+        bind:
+            $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    # State Processor pour assigner l'utilisateur aux avis produits
+    App\State\ProductReviewProcessor:
+        bind:
+            $persistProcessor: '@api_platform.doctrine.orm.state.persist_processor'
+
+    # Listener pour détecter le changement d'email
+    App\EventListener\UserEmailChangeListener:
+        tags:
+            - { name: 'doctrine.orm.entity_listener', event: 'preUpdate', entity: 'App\Entity\User' }
+
+    # Service d'envoi d'emails avec Brevo
+    App\Service\EmailService:
+        arguments:
+            $brevoApiKey: '%env(BREVO_API_KEY)%'
+            $brevoFromEmail: '%env(BREVO_FROM_EMAIL)%'
+            $brevoFromName: '%env(BREVO_FROM_NAME)%'
+
+    # Normalizer pour Seller avec calcul de productCount
+    App\Serializer\SellerNormalizer:
+        arguments:
+            $normalizer: '@serializer.normalizer.object'
+            $em: '@doctrine.orm.entity_manager'
