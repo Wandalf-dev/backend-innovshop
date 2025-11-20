@@ -1,9 +1,10 @@
 # On utilise l'image PHP officielle
 FROM php:8.2-apache
 
-# 1. Installation des dépendances système + Pilotes (MySQL & Postgres)
+# 1. Installation des dépendances système + Pilotes
+# AJOUT DE libpq-dev ICI (C'est ce qui manquait !)
 RUN apt-get update \
-    && apt-get install -y git acl openssl openssh-client wget zip vim libpng-dev zlib1g-dev libzip-dev libxml2-dev libicu-dev \
+    && apt-get install -y git acl openssl openssh-client wget zip vim libpng-dev zlib1g-dev libzip-dev libxml2-dev libicu-dev libpq-dev \
     && docker-php-ext-install intl pdo pdo_mysql pdo_pgsql zip gd soap bcmath sockets \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -29,15 +30,11 @@ COPY . .
 # 6. Finalisation Composer
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
-# ==========================================
-# LA CORRECTION EST ICI (Lignes 33-36)
-# ==========================================
-
-# 7. On crée un fichier .env vide pour tromper Symfony
+# 7. Fix pour les Assets et l'erreur .env
+# On crée le fichier .env vide pour calmer Symfony
 RUN touch .env
 
-# 8. On lance l'installation des assets en forçant l'environnement PROD
-# (Cela évite qu'il essaie de charger des trucs de debug)
+# On lance l'installation des assets
 RUN APP_ENV=prod DATABASE_URL="mysql://build:build@build:3306/build" APP_SECRET="build" php bin/console assets:install public --no-interaction
 
 # Permissions et Port
